@@ -23,7 +23,7 @@
 // Разбор — career-ops-audit.md §7.2.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,7 +79,7 @@ test('the shipped allowlist is empty — deny by default', () => {
   const { allow } = loadEgressAllowlist();
   assert.deepEqual(
     allow, [],
-    'config/llm-endpoints.json ships with a non-empty allowlist. Approving a ' +
+    'lib/egress-policy.mjs ships with a non-empty ALLOW. Approving a ' +
       'subprocessor for employee CVs is a company decision, not a repo default.',
   );
 });
@@ -110,19 +110,24 @@ test('an unparseable target is refused, not waved through', () => {
 });
 
 test('the policy is not settable from the data root', () => {
-  // The bypass this closes: loadEgressAllowlist() resolved the file under
-  // getCareerOpsRoot(), and that root comes from CAREER_OPS_ROOT — chosen by
-  // whoever runs the script. Pointing it at a directory holding a permissive
-  // llm-endpoints.json lifted the boundary without touching a reviewed file,
-  // which is the opposite of the property this module claims. Found by running
-  // the renderer against a separate candidate root, where the guard reported
-  // the shipped config as "отсутствует".
+  // The bypass this closes: the first version kept the list in
+  // config/llm-endpoints.json and resolved it under getCareerOpsRoot(). That
+  // root comes from CAREER_OPS_ROOT — chosen by whoever runs the script — so a
+  // permissive copy in any directory lifted the boundary without touching a
+  // reviewed file, which is the opposite of the property this module claims.
+  // Found by running the renderer against a separate candidate root, where the
+  // guard reported the shipped config as "отсутствует".
+  //
+  // The list now lives in lib/egress-policy.mjs, so no data root can reach it.
+  // The assertion stays: it is what fails if a future merge reintroduces a
+  // path-based read.
   const tmp = mkdtempSync(join(tmpdir(), 'egress-root-'));
   mkdirSync(join(tmp, 'config'), { recursive: true });
   writeFileSync(
     join(tmp, 'config', 'llm-endpoints.json'),
     JSON.stringify({ allow: ['evil.test'] }),
   );
+  writeFileSync(join(tmp, 'egress-policy.mjs'), "export const ALLOW = ['evil.test'];\n");
   const saved = process.env.CAREER_OPS_ROOT;
   process.env.CAREER_OPS_ROOT = tmp;
   try {
@@ -136,4 +141,19 @@ test('the policy is not settable from the data root', () => {
     else process.env.CAREER_OPS_ROOT = saved;
     rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('the policy lives in the system layer, not the user layer', () => {
+  // config/ is the user layer: update-system.mjs registers only *.example.*
+  // templates there, and .gitignore marks the real config/*.yml files "never
+  // auto-updated". A company policy in that layer is editable by the same
+  // person who runs the script, which is the arrangement this boundary exists
+  // to prevent — so the JSON file must not come back.
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  assert.equal(
+    existsSync(join(root, 'config', 'llm-endpoints.json')), false,
+    'config/llm-endpoints.json is back. The allowlist belongs in ' +
+      'lib/egress-policy.mjs, where changing it is a reviewed code change.',
+  );
+  assert.equal(existsSync(join(root, 'lib', 'egress-policy.mjs')), true);
 });

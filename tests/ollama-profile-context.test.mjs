@@ -38,6 +38,9 @@ for (const relativePath of [
   // (lib/egress-guard.mjs, career-ops-audit.md §7.2), поэтому фикстура несёт и
   // её — иначе копия раннера падает с ERR_MODULE_NOT_FOUND ещё до промпта.
   'lib/egress-guard.mjs',
+  // Граница импортирует список разрешённых хостов из политики, поэтому копия
+  // гарда без неё падает так же — ERR_MODULE_NOT_FOUND до первого промпта.
+  'lib/egress-policy.mjs',
   // reserve-report-num.mjs's main-guard comes from lib/is-main-module.mjs
   // (#3170), so a fixture that carries it has to carry the helper too.
   'lib/is-main-module.mjs',
