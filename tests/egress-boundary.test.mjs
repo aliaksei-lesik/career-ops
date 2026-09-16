@@ -23,7 +23,8 @@
 // Разбор — career-ops-audit.md §7.2.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkEgress, loadEgressAllowlist } from '../lib/egress-guard.mjs';
@@ -106,4 +107,33 @@ test('suffix matching respects the dot boundary', () => {
 
 test('an unparseable target is refused, not waved through', () => {
   assert.equal(checkEgress('not a url at all', ['openai.com']).allowed, false);
+});
+
+test('the policy is not settable from the data root', () => {
+  // The bypass this closes: loadEgressAllowlist() resolved the file under
+  // getCareerOpsRoot(), and that root comes from CAREER_OPS_ROOT — chosen by
+  // whoever runs the script. Pointing it at a directory holding a permissive
+  // llm-endpoints.json lifted the boundary without touching a reviewed file,
+  // which is the opposite of the property this module claims. Found by running
+  // the renderer against a separate candidate root, where the guard reported
+  // the shipped config as "отсутствует".
+  const tmp = mkdtempSync(join(tmpdir(), 'egress-root-'));
+  mkdirSync(join(tmp, 'config'), { recursive: true });
+  writeFileSync(
+    join(tmp, 'config', 'llm-endpoints.json'),
+    JSON.stringify({ allow: ['evil.test'] }),
+  );
+  const saved = process.env.CAREER_OPS_ROOT;
+  process.env.CAREER_OPS_ROOT = tmp;
+  try {
+    assert.deepEqual(
+      loadEgressAllowlist().allow, [],
+      'CAREER_OPS_ROOT changed the effective allowlist. The policy must come ' +
+        'from the checkout, where it is under review, not from a data root.',
+    );
+  } finally {
+    if (saved === undefined) delete process.env.CAREER_OPS_ROOT;
+    else process.env.CAREER_OPS_ROOT = saved;
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });
