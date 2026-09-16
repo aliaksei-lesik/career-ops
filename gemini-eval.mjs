@@ -76,6 +76,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
 import { TSV_ADDITION_HEADER } from './tracker-parse.mjs';
 
+import { assertEgressAllowed } from './lib/egress-guard.mjs';
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = getCareerOpsRoot();
 
@@ -428,6 +429,11 @@ LEGITIMACY: <High Confidence | Proceed with Caution | Suspicious>
 // Call Gemini API
 // ---------------------------------------------------------------------------
 console.log(`🤖  Calling Gemini (${modelName})... this may take 30-60 seconds.\n`);
+
+// Timspark: граница вывода данных (career-ops-audit.md §7.2). SDK своего fetch
+// наружу не даёт, поэтому проверяем хост Gemini API непосредственно перед
+// созданием клиента — это последняя точка до отправки.
+assertEgressAllowed('generativelanguage.googleapis.com', { script: 'gemini-eval.mjs' });
 
 const genAI = new GoogleGenerativeAI(apiKey);
 // Prompt caching (#1709) — engine 3 of the four, adapted to Gemini's shape.

@@ -235,6 +235,8 @@ const SYSTEM_PATHS = [
   'lib/placeholder-cell.mjs',
   'lib/scan-summary-marker.mjs',
   'lib/is-main-module.mjs',
+  'lib/egress-guard.mjs',
+  'lib/egress-policy.mjs',
   'lib/mjs-files.mjs',
   'lib/outcome-dir.mjs',
   'lib/outcome-types.mjs',
