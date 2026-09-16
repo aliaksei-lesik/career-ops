@@ -39,6 +39,10 @@ import {
 import { TokenAccumulator, formatBreakdown, normalizeOpenAIUsage } from './utils/token-tracker.mjs';
 import { buildBudgetedPrompt } from './lib/context-budget.mjs';
 
+import { egressFetch } from './lib/egress-guard.mjs';
+// Граница вывода данных (career-ops-audit.md §7.2): весь исходящий
+// трафик этого раннера идёт через неё.
+const guardedFetch = egressFetch('openai-eval.mjs');
 const tracker = new TokenAccumulator();
 tracker.recordZeroToken('scan');
 tracker.recordZeroToken('pdf payload');
@@ -216,6 +220,7 @@ let endpointHost;
 // Build the chat-completions endpoint from the base URL (which already includes
 // any provider version segment, e.g. ".../v1"), matching the OpenAI SDK convention.
 const endpoint = `${baseUrl}/chat/completions`;
+
 
 // ---------------------------------------------------------------------------
 // File helpers
@@ -410,7 +415,7 @@ try {
   // Streaming (SSE): llama.cpp/Unsloth brauchen bei langen Generationen den
   // sofortigen Header; Non-Streaming läuft in Node/undici in den 5-Minuten-
   // Header-Timeout, bevor die erste Zeile ankommt (8 t/s × 22k-Prefill).
-  const res = await fetch(endpoint, {
+  const res = await guardedFetch(endpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify({
