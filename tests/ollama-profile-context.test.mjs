@@ -34,6 +34,10 @@ for (const relativePath of [
   // path-resolver.mjs (CAREER_OPS_ROOT), so the fixture carries that too.
   'path-resolver.mjs',
   'lib/context-budget.mjs',
+  // ollama-eval пропускает весь исходящий трафик через границу вывода данных
+  // (lib/egress-guard.mjs, career-ops-audit.md §7.2), поэтому фикстура несёт и
+  // её — иначе копия раннера падает с ERR_MODULE_NOT_FOUND ещё до промпта.
+  'lib/egress-guard.mjs',
   // reserve-report-num.mjs's main-guard comes from lib/is-main-module.mjs
   // (#3170), so a fixture that carries it has to carry the helper too.
   'lib/is-main-module.mjs',
