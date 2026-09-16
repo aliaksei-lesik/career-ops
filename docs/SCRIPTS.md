@@ -21,9 +21,9 @@ All scripts live in the project root as `.mjs` modules. Most are exposed via
 | `npm run patterns` | `analyze-patterns.mjs` | Analyze tracker outcomes and report patterns |
 | `npm run upskill` | `upskill.mjs` | Aggregate skill-gap map from tracked reports (or `--url-text <url\|file>` for a single-JD targeted gap analysis) |
 | `npm run add` | `add-entry.mjs` | Dedup + insert a `/career-ops add` entry into cv.md / article-digest.md |
-| `npm run update:check` | `update-system.mjs check` | Check for upstream updates |
-| `npm run update` | `update-system.mjs apply --confirm` | Apply upstream update |
-| `npm run rollback` | `update-system.mjs rollback` | Rollback last update |
+| ~~`npm run update:check`~~ | — | **DISABLED in this fork** — see `modes/update.md` |
+| ~~`npm run update`~~ | — | **DISABLED in this fork** — self-update is an RCE primitive; see `career-ops-audit.md` §7.1 |
+| ~~`npm run rollback`~~ | — | **DISABLED in this fork** — nothing to roll back; updates are manual `git merge` |
 | `npm run liveness` | `check-liveness.mjs` | Test if job URLs are still active |
 | `npm run extract` | `browser-extract.mjs` | Headless read-only page extractor (opt-in `scan.extractor: cli`) — compact JSON for scan/JD; Greenhouse, Lever, Ashby and Workday postings are read from their public JSON endpoints instead of the client-rendered page, and an empty jd extraction exits 1 with `code: empty_text` |
 | `node fetch-jd.mjs <url>` | `fetch-jd.mjs` | JD text on stdout from a known ATS API (Greenhouse/Lever/Ashby/Workday) — exit 1 with empty stdout when the host has no JD-bearing API, so a caller falls back to its browser/WebFetch path |
@@ -540,36 +540,22 @@ node rejection-latency.mjs --self-test
 
 ---
 
-## update:check
+## update:check / update / rollback — DISABLED in this fork
 
-Checks whether a newer version of career-ops is available upstream. Outputs JSON to stdout:
+Self-update is disabled deliberately. The upstream updater fetches the **mutable** `main` branch, checks the downloaded updater out over the local one, executes it, then runs `npm install` (not `npm ci`, so lifecycle scripts run) — with no signature, checksum or pinned commit anywhere. Its `SYSTEM_PATHS` list includes `.github/`, so a run also rewrites the workflows that execute with repository secrets.
 
-```bash
-npm run update:check
-```
+The `update-system.mjs` CLI exits 1 on every subcommand. The module's exports are intact — eighteen files import from it, including the coverage validators and the whole `tests/updater-*.test.mjs` suite.
 
-Possible JSON responses:
-
-| `status` | Meaning |
-|----------|---------|
-| `up-to-date` | Local version matches remote |
-| `update-available` | Newer version exists (includes `local`, `remote`, `changelog`) |
-| `dismissed` | User dismissed the update prompt |
-| `offline` | Could not reach GitHub |
-
-**Exit codes:** `0` always.
-
----
-
-## update
-
-Applies the upstream update. Creates a timestamped backup branch (`backup-pre-update-<version>-<YYYYMMDDTHHMMSSZ>`), fetches from the canonical repo, checks out only system-layer files, runs `npm install`, and commits. The timestamp is derived from UTC ISO time with separators and milliseconds removed (for example, `backup-pre-update-1.8.1-20260608T071302Z`). User-layer files (`cv.md`, `config/profile.yml`, `data/`, etc.) are never touched.
+Update the fork by hand instead:
 
 ```bash
-npm run update
+git fetch upstream main
+git log --oneline HEAD..upstream/main
+git diff HEAD..upstream/main
+git merge upstream/main
 ```
 
-**Exit codes:** `0` success, `1` lock conflict or safety violation.
+Full analysis: `career-ops-audit.md` §7.1. Mode doc: `modes/update.md`.
 
 ---
 

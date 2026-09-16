@@ -354,13 +354,19 @@ test("update-system.mjs's inlined guard realpaths both sides", (t) => {
     const viaLink = spawnSync(process.execPath, [join(link, 'update-system.mjs'), '--probe-not-a-command'], {
       cwd: ROOT, encoding: 'utf-8', timeout: 60_000,
     });
+    // Timspark fork: the CLI tail now refuses every subcommand before the usage
+    // branch (self-update is disabled — see modes/update.md). The property this
+    // test exists to protect is unchanged: the inlined guard must still fire
+    // through a symlink, which we prove by the refusal being printed at all.
+    // If the guard stopped realpathing both sides, the tail would be skipped and
+    // stderr would be empty — exactly the #3170 silent no-op this catches.
     assert.match(
-      viaLink.stdout,
-      /Usage: node update-system\.mjs/,
-      `the updater printed no usage through a symlink (exit ${viaLink.status}) — its inlined ` +
-        'guard stopped realpathing both sides, and every update silently no-ops (#3170)',
+      viaLink.stderr,
+      /self-update is DISABLED/,
+      `the updater printed nothing through a symlink (exit ${viaLink.status}) — its inlined ` +
+        'guard stopped realpathing both sides, and the CLI tail silently no-ops (#3170)',
     );
-    assert.equal(viaLink.status, 1, 'the usage branch must still exit non-zero');
+    assert.equal(viaLink.status, 1, 'the refusal branch must still exit non-zero');
   } finally {
     cleanup();
   }

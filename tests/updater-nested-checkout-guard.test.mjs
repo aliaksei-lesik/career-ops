@@ -87,7 +87,11 @@ function runUpdater(fixture, cmd) {
     const res = runUpdater(fixture, 'check');
     let status;
     try { status = JSON.parse(res.stdout).status; } catch { status = undefined; }
-    if (res.status === 0 && status === 'not-a-git-toplevel') {
+    // Timspark fork: the CLI refuses before the nested-checkout guard is
+    // reached, so either outcome proves the outer repo was left alone.
+    if (res.status !== 0 && /self-update is DISABLED/.test(res.stderr)) {
+      pass('check refuses outright (self-update disabled) and never diffs the outer repo');
+    } else if (res.status === 0 && status === 'not-a-git-toplevel') {
       pass('check reports not-a-git-toplevel instead of diffing the outer repo');
     } else {
       fail(`check on a nested install exited ${res.status} with stdout ${JSON.stringify(res.stdout.slice(0, 200))}`);
@@ -107,8 +111,9 @@ function runUpdater(fixture, cmd) {
   const fixture = makeNestedFixture();
   try {
     const res = runUpdater(fixture, 'apply');
-    if (res.status !== 0 && res.stderr.includes('enclosing repository')) {
-      pass('apply refuses a nested .git-less install with an actionable error');
+    if (res.status !== 0 &&
+        (res.stderr.includes('enclosing repository') || /self-update is DISABLED/.test(res.stderr))) {
+      pass('apply refuses a nested .git-less install (self-update disabled or guard hit)');
     } else {
       fail(`apply on a nested install exited ${res.status} with stderr ${JSON.stringify(res.stderr.slice(0, 200))}`);
     }
@@ -138,7 +143,7 @@ function runUpdater(fixture, cmd) {
   const fixture = makeNestedFixture();
   try {
     const res = runUpdater(fixture, 'rollback');
-    if (res.status !== 0 && res.stderr.includes('enclosing repository')) {
+    if (res.status !== 0 && (res.stderr.includes('enclosing repository') || /self-update is DISABLED/.test(res.stderr))) {
       pass('rollback refuses a nested .git-less install instead of reading the outer repo\'s branches');
     } else {
       fail(`rollback on a nested install exited ${res.status} with stderr ${JSON.stringify(res.stderr.slice(0, 200))}`);

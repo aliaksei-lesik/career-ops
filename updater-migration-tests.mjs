@@ -72,7 +72,7 @@ const userPaths = extractArray('USER_PATHS');
 const bootstrapPaths = extractArray('BOOTSTRAP_PATHS');
 
 if (/const updateConfirmed = process\.argv\.includes\('--confirm'\)[\s\S]{0,160}isReexec/.test(source) &&
-    /Installation requires explicit confirmation/.test(source) &&
+    /Installation requires explicit confirmation|self-update is DISABLED/.test(source) &&
     /'apply',\s*'--confirm'/.test(source) &&
     /CAREER_OPS_UPDATE_REEXEC_MARKER/.test(source) &&
     /function isLegacyReexec/.test(source)) {
@@ -108,7 +108,7 @@ const envOnlyConfirmation = runApplyWithEnv({
   CAREER_OPS_UPDATE_REEXEC: '',
 });
 if (envOnlyConfirmation.status !== 0 &&
-    /Installation requires explicit confirmation/.test(envOnlyConfirmation.stderr)) {
+    /Installation requires explicit confirmation|self-update is DISABLED/.test(envOnlyConfirmation.stderr)) {
   pass('environment-only confirmation cannot authorize initial apply');
 } else {
   fail(`environment-only confirmation can authorize initial apply (${applyFailure(envOnlyConfirmation)})`);
@@ -119,7 +119,7 @@ const envOnlyForce = runApplyWithEnv({
   CAREER_OPS_UPDATE_REEXEC: '',
 });
 if (envOnlyForce.status !== 0 &&
-    /Installation requires explicit confirmation/.test(envOnlyForce.stderr)) {
+    /Installation requires explicit confirmation|self-update is DISABLED/.test(envOnlyForce.stderr)) {
   pass('environment-only force cannot authorize initial apply');
 } else {
   fail(`environment-only force can authorize initial apply (${applyFailure(envOnlyForce)})`);
@@ -127,7 +127,7 @@ if (envOnlyForce.status !== 0 &&
 
 const forceWithoutConfirmation = runApplyWithEnv({}, ['apply', '--force']);
 if (forceWithoutConfirmation.status !== 0 &&
-    /Installation requires explicit confirmation/.test(forceWithoutConfirmation.stderr)) {
+    /Installation requires explicit confirmation|self-update is DISABLED/.test(forceWithoutConfirmation.stderr)) {
   pass('force without confirmation cannot authorize initial apply');
 } else {
   fail(`force without confirmation can authorize initial apply (${applyFailure(forceWithoutConfirmation)})`);
@@ -139,7 +139,7 @@ const forgedReexec = runApplyWithEnv({
   CAREER_OPS_UPDATE_CONFIRM: '1',
 });
 if (forgedReexec.status !== 0 &&
-    /Installation requires explicit confirmation/.test(forgedReexec.stderr)) {
+    /Installation requires explicit confirmation|self-update is DISABLED/.test(forgedReexec.stderr)) {
   pass('forged reexec marker cannot authorize initial apply');
 } else {
   fail(`forged reexec marker can authorize initial apply (${applyFailure(forgedReexec)})`);
@@ -155,7 +155,7 @@ const forgedLegacyReexec = runApplyWithEnv({
 if (createdLegacyBranch.status !== 0) {
   fail(`could not create the matching backup branch fixture: ${createdLegacyBranch.stderr}`);
 } else if (forgedLegacyReexec.status !== 0 &&
-    /Installation requires explicit confirmation/.test(forgedLegacyReexec.stderr)) {
+    /Installation requires explicit confirmation|self-update is DISABLED/.test(forgedLegacyReexec.stderr)) {
   pass('legacy reexec with a matching backup branch still needs an active parent lock');
 } else {
   fail(`legacy reexec with a matching backup branch can authorize initial apply without an active parent lock (${applyFailure(forgedLegacyReexec)})`);

@@ -2749,6 +2749,53 @@ if (process.argv[1] && !isCli) {
 }
 
 if (isCli) {
+  // ── Timspark: самообновление отключено намеренно. ────────────────────────
+  //
+  // Апстримный путь обновления — примитив удалённого исполнения кода:
+  //   1. `git fetch` ИЗМЕНЯЕМОЙ ветки `main` (не тега, не пиннутого SHA)
+  //   2. `git checkout FETCH_HEAD -- <апдейтер>` — выкладывает скачанный код
+  //   3. `execFileSync(process.execPath, ['update-system.mjs','apply',...])`
+  //      — ИСПОЛНЯЕТ только что скачанный код
+  //   4. `execSync('npm install --silent')` — не `npm ci`, то есть с
+  //      lifecycle-скриптами
+  //
+  // Криптографической верификации нет ни одной: поиск по
+  // gpg|verify-commit|verify-tag|signature|sha256|checksum|sigstore|cosign
+  // на весь файл даёт единственное совпадение, и это имя файла
+  // 'SIGNATURES.md' в SYSTEM_PATHS (гостевая книга манифеста, к подписям
+  // кода отношения не имеет).
+  //
+  // Радиус поражения шире апдейтера: SYSTEM_PATHS содержит 315 записей,
+  // включая каталог `.github/` целиком — то есть перезаписываются workflows,
+  // исполняемые с секретами репозитория.
+  //
+  // Мы держим десятки корней данных с персональными данными сотрудников.
+  // Обновление — только осознанное: `git fetch upstream && git log/diff`,
+  // проверка диффа человеком, затем merge. См. career-ops-audit.md §7.1.
+  //
+  // Модуль НЕ оглушён целиком намеренно: он экспортирует 41 символ (включая
+  // USER_PATHS) и из него импортируют восемнадцать файлов — в том числе
+  // validate-untrusted-content-coverage.mjs, validate-system-paths-coverage.mjs
+  // и весь сьют tests/updater-*.test.mjs. Заблокирован только запуск из CLI.
+  console.error([
+    // Первая строка — стабильный ASCII-маркер: по нему матчатся тесты и по нему
+    // же грепается лог. Менять её нельзя, не обновив tests/*.
+    'career-ops: self-update is DISABLED in this fork (Timspark).',
+    '',
+    'Самообновление отключено намеренно.',
+    'Причина: апстримный апдейтер исполняет код, скачанный из изменяемой ветки',
+    'main, без какой-либо криптографической верификации, и перезаписывает в том',
+    'числе .github/. Подробности — career-ops-audit.md §7.1.',
+    '',
+    'Обновляться так:',
+    '  git fetch upstream main',
+    '  git log --oneline HEAD..upstream/main     # что приехало',
+    '  git diff HEAD..upstream/main              # прочитать дифф глазами',
+    '  git merge upstream/main                   # осознанно',
+  ].join('\n'));
+  process.exit(1);
+
+  // eslint-disable-next-line no-unreachable
   const cmd = process.argv[2] || 'check';
 
   try {
