@@ -30,6 +30,7 @@ try {
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { isMainModule } from './lib/is-main-module.mjs';
 
+import { assertEgressAllowed } from './lib/egress-guard.mjs';
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = getCareerOpsRoot();
 export const PATHS = {
@@ -80,6 +81,9 @@ function setupEnvironment() {
   const modelArg = process.argv.find(a => a.startsWith('--model='));
   const resolvedSpendTier = readSpendTier();
   modelName = modelArg ? modelArg.split('=')[1] : spendTierToModel(resolvedSpendTier); // GitHub diff trigger
+  // Timspark: граница вывода данных (career-ops-audit.md §7.2).
+  assertEgressAllowed('generativelanguage.googleapis.com', { script: 'batch-evaluate-gemini.mjs' });
+
   const genAI = new GoogleGenerativeAI(apiKey);
   model = genAI.getGenerativeModel({
     model: modelName,

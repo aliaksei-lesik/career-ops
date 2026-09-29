@@ -22,6 +22,10 @@ import { fileURLToPath } from 'url';
 import { getCareerOpsRoot } from './path-resolver.mjs';
 import * as yaml from 'js-yaml';
 
+import { egressFetch } from './lib/egress-guard.mjs';
+// Граница вывода данных (career-ops-audit.md §7.2): весь исходящий
+// трафик этого раннера идёт через неё.
+const guardedFetch = egressFetch('openai-tailor.mjs');
 try {
   const { config } = await import('dotenv');
   config();
@@ -164,6 +168,7 @@ let endpointHost;
 
 const endpoint = `${baseUrl}/chat/completions`;
 
+
 // ---------------------------------------------------------------------------
 // File helpers
 // ---------------------------------------------------------------------------
@@ -276,7 +281,7 @@ if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
 let tailoredHtml;
 try {
-  const res = await fetch(endpoint, {
+  const res = await guardedFetch(endpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify({

@@ -34,6 +34,11 @@ import {
 import { TokenAccumulator, formatBreakdown, normalizeOpenAIUsage } from './utils/token-tracker.mjs';
 import { buildBudgetedPrompt } from './lib/context-budget.mjs';
 
+
+import { egressFetch } from './lib/egress-guard.mjs';
+// Граница вывода данных (career-ops-audit.md §7.2): весь исходящий
+// трафик этого раннера идёт через неё.
+const guardedFetch = egressFetch('ollama-eval.mjs', { what: 'ваш cv.md и полный текст вакансии (удалённый Ollama)' });
 const tracker = new TokenAccumulator();
 tracker.recordZeroToken('scan');
 tracker.recordZeroToken('pdf payload');
@@ -287,7 +292,7 @@ function normalizedTrackerScore(value) {
 // Check Ollama is reachable before burning time on prompt assembly
 // ---------------------------------------------------------------------------
 try {
-  const probe = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(5_000) });
+  const probe = await guardedFetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(5_000) });
   if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
 } catch (err) {
   console.error(`
@@ -378,7 +383,7 @@ console.log(`🤖  Calling Ollama (${modelName})... this may take a minute.\n`);
 
 let evaluationText;
 try {
-  const res = await fetch(endpoint, {
+  const res = await guardedFetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

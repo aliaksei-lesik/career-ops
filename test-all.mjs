@@ -18520,7 +18520,16 @@ try {
     pass('Gemini evaluator resolved custom modes directory (modes/tr/) and localized filenames (is-ilani.md)');
   }
 
-  if (stderr.includes('API_KEY') || stderr.includes('API key')) {
+  // Timspark: граница вывода данных (lib/egress-guard.mjs, career-ops-audit.md
+  // §7.2) отказывает ДО создания клиента Gemini, поэтому с пустым allowlist
+  // фаза API теперь недостижима — и это ровно то поведение, которого мы хотели.
+  // Отказ границы считаем корректным терминальным состоянием наравне с ошибкой
+  // ключа: обе доказывают, что раннер дошёл до точки отправки и дальше не
+  // прошёл. Проверки выше (загрузка файлов, резолвинг modes/tr/) не тронуты —
+  // они и есть предмет этого теста.
+  if (stderr.includes('egress BLOCKED')) {
+    pass('Gemini evaluator stopped at the egress boundary before reaching the API');
+  } else if (stderr.includes('API_KEY') || stderr.includes('API key')) {
     pass('Gemini evaluator reached API phase with mock key');
   } else {
     fail(`Gemini evaluator failed before reaching API phase or crashed: ${stderr}`);

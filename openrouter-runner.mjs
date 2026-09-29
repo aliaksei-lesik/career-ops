@@ -36,6 +36,10 @@ import { localToday } from './lib/local-today.mjs';
 import { getCareerOpsRoot } from './path-resolver.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
+import { egressFetch } from './lib/egress-guard.mjs';
+// Граница вывода данных (career-ops-audit.md §7.2): весь исходящий
+// трафик этого раннера идёт через неё.
+const guardedFetch = egressFetch('openrouter-runner.mjs');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tracker = new TokenAccumulator();
 let activeModel = null;
@@ -64,6 +68,7 @@ function loadEnvFile() {
 // ---------------------------------------------------------------------------
 const OPENROUTER_API_URL    = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
+
 const MAX_TOKENS            = 8192;
 const RATE_LIMIT_DELAY_MS   = 2500;  // pause between requests on free tier
 const MODEL_TIMEOUT_MS      = 15_000; // abort a single model call after 15 s
@@ -117,7 +122,7 @@ async function loadFreeModels() {
   if (freeModels !== null) return freeModels;
 
   try {
-    const resp = await fetch(OPENROUTER_MODELS_URL, {
+    const resp = await guardedFetch(OPENROUTER_MODELS_URL, {
       headers: { 'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}` }
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -243,7 +248,7 @@ async function callOpenRouter(systemPrompt, userMessage) {
     const ctrl = new AbortController();
     const timerId = setTimeout(() => ctrl.abort(), MODEL_TIMEOUT_MS);
     try {
-      const resp = await fetch(OPENROUTER_API_URL, {
+      const resp = await guardedFetch(OPENROUTER_API_URL, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${key}`,
@@ -304,7 +309,7 @@ async function callOpenRouter(systemPrompt, userMessage) {
       const timerId = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
       let data;
       try {
-        const resp = await fetch(OPENROUTER_API_URL, {
+        const resp = await guardedFetch(OPENROUTER_API_URL, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${key}`,
@@ -448,7 +453,7 @@ async function fetchJobPage(url) {
 
   // Plain HTTP fallback
   try {
-    const r = await fetch(url, {
+    const r = await guardedFetch(url, {
       headers: { 'User-Agent': DEFAULT_USER_AGENT }
     });
     if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
@@ -620,7 +625,7 @@ async function cmdScan() {
     process.stdout.write(`  ${c.name.padEnd(25)} → `);
     try {
       assertSafeRemoteUrl(c.api);
-      const r = await fetch(c.api);
+      const r = await guardedFetch(c.api);
       if (!r.ok) { console.log(`HTTP ${r.status}`); continue; }
       const data = await r.json();
       const jobs = data.jobs ?? [];
